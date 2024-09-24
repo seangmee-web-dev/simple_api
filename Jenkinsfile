@@ -1,104 +1,67 @@
 pipeline {
-    agent any
-    environment {
-        IMAGE_NAME = 'ghcr.io/thanatat64/test-api'
+    agent {
+        label 'test'
     }
-
     stages {
-        stage('Run Unit Test') {
-            agent {
-                    label 'test'
-            }
+        stage('Clone simple-api repository') {
             steps {
-                sh 'echo pass here'
-                sh 'pip install --no-cache-dir --upgrade -r requirements.txt '
-                sh 'python3 unit_test.py'
-            // Assumes unit_test.py exists in the root directory and contains your unit tests
-            }
-        }
-        stage('Create Images of Simple API') {
-            agent {
-                    label 'test'
-            }
-            steps {
-                sh 'docker stop simple-api-container'
-                sh 'docker rm simple-api-container'
-                sh 'docker build -t simple-api .'
-            // Build Docker image using provided Dockerfile
-            }
-        }
-        stage('Create Container of Simple API') {
-            agent {
-                    label 'test'
-            }
-            steps {
-                sh 'docker run -d -p 8000:8000 --name simple-api-container simple-api'
-            // Create Docker container from the built image
-            }
-        }
-        stage('Clone/Setup Robot') {
-            agent { label 'test' }
-            steps {
-                dir('./robot-test/') {
-                    git branch: 'main', credentialsId: 'tnt', url: 'https://github.com/thanatat64/SDPX-Robot-Assignment.git'
-                }
-                echo 'clone done!'
+                git url: 'https://github.com/seangmee-web-dev/simple_api.git', branch: 'dev'
             }
         }
 
-        stage('Run Robot') {
-            agent { label 'test' }
+        stage('Build and Test API') {
             steps {
-                // sh "pwd"
-                // sh "ls"
-                sh 'cd ./robot-test && python3 -m robot test_plus.robot'
+                script {
+                    // Build and test API
+                    sh 'pip install -r requirements.txt ' // Install dependencies
+                    sh 'python3 app.py &'
+                    sh 'sleep 5' // Wait for API to start
+
+                    // Run unit tests
+                    sh 'python3 test_unit.py'
+                }
             }
         }
-        stage('Push image') {
-            agent {
-                    label 'test'
-            }
+
+        stage('Build and Test Robot Framework') {
             steps {
-                withCredentials(
-                [usernamePassword(
-                    credentialsId: 'tnt',
-                    passwordVariable: 'githubPassword',
-                    usernameVariable: 'githubUser'
-                )]
-            ) {
-                    sh "docker login ghcr.io -u ${githubUser} -p ${githubPassword}"
-                    sh "docker pull ${IMAGE_NAME}"
-                    sh "docker tag ${IMAGE_NAME} ${IMAGE_NAME}:${env.BUILD_NUMBER}"
-                    sh "docker push ${IMAGE_NAME}:${env.BUILD_NUMBER}"
-                    sh "docker rmi ${IMAGE_NAME}:${env.BUILD_NUMBER}"
-            }
+                script {
+                    dir('./robot3/') {
+                        git url: 'https://github.com/seangmee-web-dev/robot_test_simple_api.git', branch: 'main'
+                    }
+                    sh 'cd ./robot3 && robot test_robot.robot'
+                }
             }
         }
-        stage('Pull image && runcontainer') {
-            agent {
-                    label 'pre-prod'
-            }
+
+        // #build image
+        stage('Build and Push Docker Image') {
             steps {
-                withCredentials(
-                [usernamePassword(
-                    credentialsId: 'tnt',
-                    passwordVariable: 'githubPassword',
-                    usernameVariable: 'githubUser'
-                )]
-            ) {
-                    sh "docker login ghcr.io -u ${githubUser} -p ${githubPassword}"
-                    sh "docker pull ${IMAGE_NAME}"
-            }
+                script {
+                    sh 'docker login'
+                    sh 'docker build -t horiii/cicd:lastest .'
+                    sh 'docker push horiii/cicd:lastest'
+                }
             }
         }
-        stage('runcontainer') {
+
+        stage('Clean Workspace') {
+            steps {
+                sh 'docker compose down'
+                sh 'docker system prune -a -f'
+            }
+        }
+        stage('compose up') {
+            steps {
+                sh 'docker compose up -d --build'
+            }
+        }
+        stage('Running Preprod') {
             agent {
-                    label 'pre-prod'
+                label 'preprod'
             }
             steps {
-                    sh 'docker stop simple-api-container02'
-                    sh 'docker rm simple-api-container02'
-                    sh "docker run -d -p 8000:8000 --name simple-api-container02 ${IMAGE_NAME}"
+                sh 'docker compose down && docker system prune -a -f && docker compose up -d --build'
             }
         }
     }

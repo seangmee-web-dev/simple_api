@@ -1,13 +1,10 @@
-FROM python:3.9-alpine
-
-WORKDIR /code 
-
-COPY requirements.txt .  
-
-RUN pip install --no-cache-dir --upgrade -r requirements.txt 
-
-COPY . . 
-
-EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+# syntax=docker/dockerfile:1
+FROM python:3.7-alpine
+WORKDIR /app
+ENV FLASK_APP=app.py
+ENV FLASK_RUN_HOST=0.0.0.0
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
+EXPOSE 5000
+COPY . .
+CMD ["flask", "run", "--host", "0.0.0.0"]
