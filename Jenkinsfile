@@ -5,7 +5,7 @@ pipeline {
     stages {
         stage('Clone simple-api repository') {
             steps {
-                git url: 'https://github.com/nichaOrg/simple-api.git', branch: 'main'
+                git url: 'https://github.com/nichaOrg/simple-api.git', branch: 'dev'
             }
         }
 
