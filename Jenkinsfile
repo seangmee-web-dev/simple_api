@@ -5,7 +5,7 @@ pipeline {
     stages {
         stage('Clone simple-api repository') {
             steps {
-                git url: 'https://github.com/seangmee-web-dev/simple_api.git', branch: 'dev'
+                git url: 'https://github.com/nichaOrg/simple-api.git', branch: 'main'
             }
         }
 
@@ -14,11 +14,11 @@ pipeline {
                 script {
                     // Build and test API
                     sh 'pip install -r requirements.txt ' // Install dependencies
-                    sh 'python3 main.py &'
+                    sh 'python3 app.py &'
                     sh 'sleep 5' // Wait for API to start
 
                     // Run unit tests
-                    sh 'python3 unit_test.py'
+                    sh 'python3 test_unit.py'
                 }
             }
         }
@@ -27,9 +27,9 @@ pipeline {
             steps {
                 script {
                     dir('./robot3/') {
-                        git url: 'https://github.com/seangmee-web-dev/robot_test_simple_api.git', branch: 'main'
+                        git url: 'https://github.com/nichaOrg/simple-api-robot.git', branch: 'main'
                     }
-                    sh 'cd ./robot3 && robot test_plus.robot'
+                    sh 'cd ./robot3 && robot test_robot.robot'
                 }
             }
         }
@@ -58,7 +58,7 @@ pipeline {
         }
         stage('Running Preprod') {
             agent {
-                label 'pre-prod'
+                label 'preprod'
             }
             steps {
                 sh 'docker compose down && docker system prune -a -f && docker compose up -d --build'
